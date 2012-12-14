@@ -63,7 +63,7 @@
   }
 
   function invokeArgs(key, args) {
-    return ObjectPrototypeGet.call(this, key).apply(this, args);
+    return ObjectPrototypeGet.call(this, key).apply(this, args || []);
   }
 
   function keysThroughLoop(object) {
