@@ -55,6 +55,25 @@ And this is the `Object` static API in alphabetic order:
   * `Object.unintercept(o:Object, f:Function):o` removes the function from notifications and returns the original, first argument, object.
   * `Object.unobserve(o:Object, f:Function)` removes the function from notifications and returns the original, first argument, object.
 
+###Don't Be Afraid
+The fact I'm extending `Object.prototype` in 2012 does not mean I am mental or noob ... I am coding JS since *IE4* and I've seen every bloody piece of code interacting over `for/in` loops through the `obj.hasOwnProperty(key)` pattern so ... really, don't be worried about this.
+Said that, the aim of this project is actually to promote a different paradigm such:
+
+    function doSomething(key) {
+      var value = this.get(key);
+      if (value.needsUpdates) {
+        this.set(key, update(value))
+      }
+    }
+    obj.keys().forEach(doSomething, obj);
+
+So once again, if you use this project for what it provides, you know your own objects and your own way to interact with them in an optimal way.
+Libraries unaware of this library, will still be safe using the boring `for/in` loop all over the place, without using ES5 non enumerable possibility, etc etc ...
+
+###Reserved Words
+These are the only "*problematic*" keys an object could have able to potentially cause problems to external libraries and only if `Object.observe()` or `Object.intercept()` have been used with the specific object, otherwise there's nothing to worry about.
+Since libraries not aware of *AnotherJS* will never use those `Object` methods, again nothing to really worry about but you are surely welcome to update those libraries and promote *anotherJS* version in your own repository, these will be linked here too!
+
 ###On Object.intercept(o,f)
 Any time we `o.get(key)`, `o.set(key, value)`, or `o.invoke(key, arg0, arg1)`, together with `invokeArgs(key, [arg0,arg1])` and `(invokeBound(key))(arg0, arg1)` each function registered with `Object.intercept(o,f)` will be called synchronously.
 **First come, first serve** is also the pattern used to overwrite the result of the operation since of course, the first one that can observe or intercept an object, is usually considered the owner of the object.
@@ -76,4 +95,6 @@ Any time we `o.get(key)`, `o.set(key, value)`, or `o.invoke(key, arg0, arg1)`, t
     o.invoke("hello", "everybody"); // or ... o.hello("everybody");
     // Hi everybody, my name is Andrea
 
-You can [try in console the whole API with any browser you want](http://www.3site.eu/another-js/).
+###More Documentation Coming Soon
+It's not easy at all to write all examples and explain everything here so more is coming but you can already [try in console the whole API with any browser you want](http://www.3site.eu/another-js/).
+Right now we are talking about `Object` only but others native constructor are coming into *anotherJS* pretty soon.
