@@ -95,6 +95,12 @@ Any time we `o.get(key)`, `o.set(key, value)`, or `o.invoke(key, arg0, arg1)`, t
     o.invoke("hello", "everybody"); // or ... o.hello("everybody");
     // Hi everybody, my name is Andrea
 
+###Performance
+If you are concerned about performances I understand. Interacting with all objects like this might not look like the best thing ever to do but here the deal: **you don't have to interact with all objects like that**.
+That's correct, when raw performances are essential and objects don't need to be observable or interceptable, the simple `obj.prop, obj.prop = value` will still work as expected.
+You might find handy at that point the fact other methods such `has(key)` or `contains(value)` still works as expected, as well as `keys()` and `values()` could be still used without any sort of problem.
+Last, but not least, you can have an idea of number of operations per second you can have with or without [AnotherJS get](http://jsperf.com/another-js-get) and realize **in some browser it is faster than native ES5 getter**.
+
 ###More Documentation Coming Soon
 It's not easy at all to write all examples and explain everything here so more is coming but you can already [try in console the whole API with any browser you want](http://www.3site.eu/another-js/).
 Right now we are talking about `Object` only but others native constructor are coming into *AnotherJS* pretty soon.
