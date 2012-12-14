@@ -37,6 +37,62 @@ wru.test([{
     wru.assert("!has", !{"456":123}.has(123));
   }
 },{
+  name: "invoke",
+  test: function () {
+    var
+      args,
+      o = {
+        test: function () {
+          this.args = args = arguments;
+          return arguments.length;
+        }
+      }
+    ;
+    wru.assert("no arguments", o.invoke("test", 1, 2) === 2);
+    wru.assert("args was set as 'o' property", o.args === args);
+    wru.assert("args was correct", args[0] === 1 && args[1] === 2);
+  }
+},{
+  name: "invokeArgs",
+  test: function () {
+    var
+      args,
+      o = {
+        test: function () {
+          this.args = args = arguments;
+          return arguments.length;
+        }
+      }
+    ;
+    wru.assert("no arguments", o.invokeArgs("test", [1, 2]) === 2);
+    wru.assert("args was set as 'o' property", o.args === args);
+    wru.assert("args was correct", args[0] === 1 && args[1] === 2);
+  }
+},{
+  name: "invokeBound",
+  test: function () {
+    var
+      o = {
+        test: function(a, b){
+          wru.assert("correct bound", this === o);
+          return a + b;
+        }
+      },
+      bound = o.invokeBound("test")
+    ;
+    wru.assert("correct value", bound(123, 456) === 579);
+    wru.assert("bound once and never again", bound === o.invokeBound("test"));
+    // this is a smelly test but I'd like to really be sure
+    // objects can be cleared
+    for (var key in o) {
+      if (key.charAt(0) === "_") delete o[key];
+    }
+    Object.getOwnPropertyNames && Object.getOwnPropertyNames(o).forEach(function(key){
+      if (key.charAt(0) === "_") delete o[key];
+    });
+    wru.assert("once deleted, ", bound != o.invokeBound("test"));
+  }
+},{
   name: "keys",
   test: function () {
     wru.assert("no keys", {}.keys().length === 0);
@@ -254,7 +310,7 @@ wru.test([{
           o.set("k", 0);
           setTimeout(wru.async(function(){
             wru.assert("called one more times", 6 == R.length);
-            wru.assert("observe was correct too", R[5][0].type === "updated");
+            wru.assert("observe was correct too", R[5].pop().type === "updated");
             Object.unobserve(o, handler);
             wru.assert("get and set are original one",
               Object.prototype.get === o.get &&
@@ -265,6 +321,44 @@ wru.test([{
         }), 70);
       }), 70);
     }), 70);
+  }
+},{
+  name: "Object.intercept(object, invoke)",
+  test: function () {
+    var
+      f1 = function () {
+        called++;
+      },
+      f2 = function () {
+        called++;
+        return "f2";
+      },
+      f3 = function () {
+        called++;
+        return "f3";
+      },
+      o = {
+        test: function () {
+          called++;
+          return "o";
+        }
+      },
+      called = 0,
+      i
+    ;
+    Object.intercept(o, f1);
+    Object.intercept(o, f2);
+    Object.intercept(o, f3);
+    wru.assert("intercepted f2 return", o.invoke("test") === "f2");
+    wru.assert("right amount of calls", called === 3);
+    Object.unintercept(o, f2);
+    wru.assert("intercepted f3 return", o.invoke("test") === "f3");
+    Object.unintercept(o, f3);
+    wru.assert("intercepted with no return", o.invoke("test") === "o");
+    Object.unintercept(o, f1);
+    i = called;
+    o.invoke("test");
+    wru.assert("all interceptors removed", called === (i + 1));
   }
 }
 ]);

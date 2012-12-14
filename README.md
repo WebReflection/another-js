@@ -1,4 +1,4 @@
-another-js
+Another JS
 ==========
 
 a different approach to uniform JavaScript

@@ -23,6 +23,22 @@
     return self;
   }
 
+  function clearDescriptors(self) {
+    for(var
+      i = objectDescriptorsKeys.length;
+      i--;
+      delete self[objectDescriptorsKeys[i]]
+    );
+  }
+
+  function define(object, key, descriptors) {
+    return defineProperties(object, Descriptors(
+      descriptors ?
+        (object = {}, object[key] = descriptors, object) :
+        key
+    ));
+  }
+
   function doStuff(wm, object, handler, descriptors) {
     var handlers = wm.get(object), hadnt = !handlers;
     if (hadnt) {
@@ -38,6 +54,16 @@
 
   function get(key) {
     return this[key];
+  }
+
+  function invoke(key) {
+    return invokeArgs.call(
+      this, shift.call(arguments), arguments
+    );
+  }
+
+  function invokeArgs(key, args) {
+    return ObjectPrototypeGet.call(this, key).apply(this, args);
   }
 
   function keysThroughLoop(object) {
@@ -64,6 +90,20 @@
       if (result === u && current !== u) result = current;
     }
     return result === u ? newValue : result;
+  }
+
+  function notifyInvoke(self, key, args) {
+    var returnedValue = notify(
+      self,
+      im.get(self),
+      "invoke",
+      key,
+      args
+    );
+    return returnedValue === args ?
+      invokeArgs.call(self, key, args) :
+      returnedValue
+    ;
   }
 
   function schedule(object, observers, type, name, oldValue) {
@@ -101,9 +141,17 @@
     ,
     sharedRecords = [],
     observersToInvoke = [],
+    shift = sharedRecords.shift,
+    concat = sharedRecords.concat,
     indexOf = sharedRecords.indexOf || function indexOf(value) {
       for (var i = this.length; i-- && this[i] !== value;);
       return i;
+    },
+    bind = Object.bind || function bind(self, key) {
+      var callback = this, args = [key];
+      return function () {
+        return callback.apply(self, concat.apply(args, arguments));
+      };
     },
     Object_create = Object.create || function create(proto, descriptors) {
       return proto ?
@@ -153,6 +201,9 @@
       "del",
       "get",
       "has",
+      "invoke",
+      "invokeArgs",
+      "invokeBound",
       "keys",
       "set",
       "values"
@@ -167,6 +218,22 @@
             "get",
             key,
             ObjectPrototypeGet.call(this, key)
+          );
+        }
+      },
+      invoke: {
+        configurable: true,
+        value: function invoke(key) {
+          return notifyInvoke(
+            this, shift.call(arguments), arguments
+          );
+        }
+      },
+      invokeArgs: {
+        configurable: true,
+        value: function invokeArgs(key, args) {
+          return notifyInvoke(
+            this, key, args
           );
         }
       },
@@ -247,7 +314,10 @@
     objectDescriptors = {
       contains: function contains(value) {
         for (var key in this)
-          if (this.has(key) && ObjectPrototypeGet.call(this, key) === value)
+          if (
+            this.has(key) &&
+            ObjectPrototypeGet.call(this, key) === value
+          )
             return true
           ;
         ;
@@ -260,6 +330,19 @@
       has: function has(key) {
         return hasOwnProperty.call(this, key);
       },
+      invoke: invoke,
+      invokeArgs: invokeArgs,
+      invokeBound: function invokeBound(key) {
+        var secret = "__@" + key;
+        return  ObjectPrototypeGet.call(this, secret) ||
+                ObjectPrototypeGet.call(define(
+                  this, secret, {
+                    configurable: true,
+                    value: bind.call(invoke, this, key)
+                  }
+                ), secret)
+        ;
+      },
       keys: function keys() {
         return Object_keys(this);
       },
@@ -267,7 +350,9 @@
       values: function values() {
         var values = [], key;
         for (key in this)
-          this.has(key) && values.push(ObjectPrototypeGet.call(this, key))
+          this.has(key) && values.push(
+            ObjectPrototypeGet.call(this, key)
+          )
         ;
         return values;
       }
@@ -318,22 +403,16 @@
 
   defineProperties(Object, {
     define: {
-      value: function define(object, key, descriptors) {
-        return defineProperties(object, Descriptors(
-          descriptors ?
-            (object = {}, object[key] = descriptors, object) :
-            key
-        ));
-      }
+      value: define
     }
   });
 
   defineProperties(Object, {
     defineProperty: {
-      value: Object.define
+      value: define
     },
     defineProperties: {
-      value: Object.define
+      value: define
     },
     create: {
       value: function create(proto, descriptors) {
@@ -342,13 +421,35 @@
     }
   });
 
-  Object_observe || defineProperties(Object, {
+  defineProperties(Object, {
     intercept: {
       value: function intercept(object, interceptor) {
         doStuff(im, object, interceptor, interceptedDescriptors);
         return object;
       }
     },
+    unintercept: {
+      value: function unintercept(object, interceptor) {
+        var i, interceptors = im.get(object);
+        if (interceptors) {
+          (i = indexOf.call(interceptors, interceptor)) < 0 ||
+            interceptors.splice(i, 1);
+          if (!interceptors.length) {
+            im["delete"](object);
+            clearDescriptors(object);
+            om.has(object) &&
+              defineProperties(object, observedDescriptors)
+            ;
+          }
+        }
+        return object;
+      }
+    }
+  });
+
+  // TODO:  avoid Object.prototype keys notifications
+  //        for native Object.observe()
+  Object_observe || defineProperties(Object, {
     observe: {
       value: function observe(object, observer) {
         var observers = doStuff(om, object, observer, observedDescriptors);
@@ -361,24 +462,6 @@
         return object;
       }
     },
-    unintercept: {
-      value: function unintercept(object, interceptor) {
-        var i, interceptors = im.get(object);
-        if (interceptors) {
-          (i = indexOf.call(interceptors, interceptor)) < 0 ||
-            interceptors.splice(i, 1);
-          if (!interceptors.length) {
-            im["delete"](object);
-            delete object.get;
-            delete object.set;
-            om.has(object) &&
-              defineProperties(object, observedDescriptors)
-            ;
-          }
-        }
-        return object;
-      }
-    },
     unobserve: {
       value: function unobserve(object, observer) {
         var i, observers = om.get(object);
@@ -387,10 +470,7 @@
             observers.splice(i, 1);
           if (!observers.length) {
             om["delete"](object);
-            delete object.del;
-            delete object.has;
-            delete object.keys;
-            delete object.set;
+            clearDescriptors(object);
             im.has(object) &&
               defineProperties(object, interceptedDescriptors)
             ;
