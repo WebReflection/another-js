@@ -98,3 +98,6 @@ Any time we `o.get(key)`, `o.set(key, value)`, or `o.invoke(key, arg0, arg1)`, t
 ###More Documentation Coming Soon
 It's not easy at all to write all examples and explain everything here so more is coming but you can already [try in console the whole API with any browser you want](http://www.3site.eu/another-js/).
 Right now we are talking about `Object` only but others native constructor are coming into *anotherJS* pretty soon.
+
+###Tests
+For the web, open `test.html` and you are ready to go. Use [polpetta](https://github.com/WebReflection/polpetta) if your browser does not load file protocol. For **node.js**, simply `node test/Object.js` from this folder.
