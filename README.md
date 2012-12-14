@@ -73,7 +73,7 @@ Any time we `o.get(key)`, `o.set(key, value)`, or `o.invoke(key, arg0, arg1)`, t
     });
 
     o.set("name", "Andrea");
-    o.hello("everybody");
+    o.invoke("hello", "everybody"); // or ... o.hello("everybody");
     // Hi everybody, my name is Andrea
 
-You can try in console the whole API with any browser you want.
+You can [try in console the whole API with any browser you want](http://www.3site.eu/another-js/).
