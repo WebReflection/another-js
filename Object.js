@@ -31,12 +31,14 @@
     );
   }
 
-  function define(object, key, descriptors) {
-    return defineProperties(object, Descriptors(
-      descriptors ?
-        (object = {}, object[key] = descriptors, object) :
-        key
-    ));
+  function generateDefine(callback) {
+    return function define(object, key, descriptors) {
+      return defineProperties(object, callback(
+        descriptors ?
+          (object = {}, object[key] = descriptors, object) :
+          key
+      ));
+    };
   }
 
   function doStuff(wm, object, handler, descriptors) {
@@ -171,6 +173,7 @@
     ObjectPrototypeSet = set,
     hasOwnProperty = ObjectPrototype.hasOwnProperty,
     hasDefineProperties = true,
+    define = generateDefine(Descriptors),
     defineProperties = function(defineProperties){
       try {
         if (!defineProperties({},{_:{value:1}})._) throw "";
@@ -408,6 +411,9 @@
   });
 
   defineProperties(Object, {
+    defineRaw: {
+      value: generateDefine(Object)
+    },
     defineProperty: {
       value: define
     },

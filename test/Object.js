@@ -1,6 +1,5 @@
 //remove:
 require("../Object.js");
-var wru = require('../wru');
 //:remove
 
 wru.test([{
