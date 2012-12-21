@@ -2,26 +2,34 @@
  * @license (C) Andrea Giammarchi, @WebReflection
  */
 "use strict";
-!("set" in {} || function(Object){
+!("has" in {} || function(Object){
 
   function Descriptors(object) {
     var
-      self = {},
-      curr, tmp, key, i
+      descriptors = Object_create(null),
+      key
     ;
-    for(key in object)
-      if (!(key in ObjectPrototype))
-        for (
-          i = 0, curr = object[key], tmp = self[key] = Object_create(null);
-          i < descriptorProperties.length;
-          (key = descriptorProperties[i++]) in curr &&
-            !(key in ObjectPrototype) &&
-             (tmp[key] = curr[key])
-        );
-      ;
-    ;
-    return self;
+    for (key in object) {
+      hasOwnProperty.call(object, key) &&
+      (descriptors[key] = Descriptor(object[key]));
+    }
+    return descriptors;
   }
+
+  function Descriptor(config) {
+    for (var
+      descriptor = Object_create(null),
+      i = 0, key; i < descriptorProperties.length;
+      hasOwnProperty.call(
+        config, key = descriptorProperties[i++]
+      ) &&
+      (descriptor[key] = config[key])
+    );
+    return descriptor;
+  }
+
+  function Null() {}
+  Null.prototype.__proto__ = null;
 
   function clearDescriptors(self) {
     for(var
@@ -31,14 +39,16 @@
     );
   }
 
-  function generateDefine(callback) {
-    return function define(object, key, descriptors) {
-      return defineProperties(object, callback(
-        descriptors ?
-          (object = {}, object[key] = descriptors, object) :
-          key
-      ));
-    };
+  function create(proto, descriptors) {
+    return Object_create(proto, Descriptors(descriptors));
+  }
+
+  function defineProperty(object, key, descriptor) {
+    return Object_defineProperty(object, key, Descriptor(descriptor));
+  }
+
+  function defineProperties(object, descriptors) {
+    return Object_defineProperties(object, Descriptors(descriptors));
   }
 
   function doStuff(wm, object, handler, descriptors) {
@@ -52,6 +62,10 @@
     indexOf.call(handlers, handler) < 0 &&
       handlers.push(handler);
     return hadnt && handlers;
+  }
+
+  function filterPrototypeKeys(key) {
+    return indexOf.call(objectDescriptorsKeys, key) < 0;
   }
 
   function get(key) {
@@ -138,6 +152,8 @@
   }
 
   var
+    // quick and dirty test of internal shims
+    __FORCE_SHIM__ = false,
     timeout = typeof setImmediate === typeof timeout ?
       setTimeout : setImmediate
     ,
@@ -155,42 +171,47 @@
         return callback.apply(self, concat.apply(args, arguments));
       };
     },
-    Object_create = Object.create || function create(proto, descriptors) {
+    Object_create = (!__FORCE_SHIM__ && Object.create) || function create(proto, descriptors) {
       return proto ?
         (this instanceof create ?
-          (create.prototype = create) && defineProperties(this, descriptors) :
+          (create.prototype = create) && Object_defineProperties(this, descriptors) :
           new create(create.prototype = proto, descriptors)
         ) :
-        defineProperties({__proto__: null}, descriptors)
+        Object_defineProperties(new Null, descriptors)
       ;
     },
+    Object_freeze = Object.freeze || Object,
+    Object_keys = (!__FORCE_SHIM__ && Object.keys) || keysThroughLoop,
     Object_observe = Object.observe,
     Object_unobserve = Object.unobserve,
-    Object_freeze = Object.freeze || Object,
-    Object_keys = Object.keys || keysThroughLoop,
     ObjectPrototype = Object.prototype,
     ObjectPrototypeGet = get,
     ObjectPrototypeSet = set,
-    hasOwnProperty = ObjectPrototype.hasOwnProperty,
-    hasDefineProperties = true,
-    define = generateDefine(Descriptors),
-    defineProperties = function(defineProperties){
+    Object_defineProperty,
+    Object_defineProperties = function($defineProperties){
       try {
-        if (!defineProperties({},{_:{value:1}})._) throw "";
+        if (__FORCE_SHIM__ || !$defineProperties({},{_:{value:1}})._) throw "";
+        Object_defineProperty = Object.defineProperty;
       } catch(o_O) {
-        hasDefineProperties = !hasDefineProperties;
-        defineProperties = function (
+        $defineProperties = function defineProperties(
           object, descriptor
         ) {
           for (var key in descriptor)
             hasOwnProperty.call(descriptor, key) &&
-              (object[key] = descriptor[key].value)
+            (object[key] = descriptor[key].value)
           ;
           return object;
         };
+        Object_defineProperty = function defineProperty(object, key, descriptor) {
+          var d = {};
+          d[key] = descriptor;
+          return defineProperties(object, d);
+        };
       }
-      return defineProperties;
+      return $defineProperties;
     }(Object.defineProperties),
+    __ES5__ = !__FORCE_SHIM__ && Object_defineProperty === Object.defineProperty,
+    hasOwnProperty = ObjectPrototype.hasOwnProperty,
     descriptorProperties = [
       "configurable",
       "enumerable",
@@ -280,8 +301,9 @@
       has: {
         configurable: true,
         value: function has(key) {
-          return indexOf.call(objectDescriptorsKeys, key) < 0 &&
-            hasOwnProperty.call(this, key)
+          return  hasOwnProperty.call(this, key) &&
+                    this.propertyIsEnumerable(key) &&
+                    filterPrototypeKeys(key)
           ;
         }
       },
@@ -316,15 +338,7 @@
     }),
     objectDescriptors = {
       contains: function contains(value) {
-        for (var key in this)
-          if (
-            this.has(key) &&
-            ObjectPrototypeGet.call(this, key) === value
-          )
-            return true
-          ;
-        ;
-        return false;
+        return -1 < indexOf.call(this.values(), value);
       },
       del: function del(key) {
         return this.has(key) && delete this[key];
@@ -338,24 +352,25 @@
       invokeBound: function invokeBound(key) {
         var secret = "__@" + key;
         return  ObjectPrototypeGet.call(this, secret) ||
-                ObjectPrototypeGet.call(define(
-                  this, secret, {
+                ObjectPrototypeGet.call(defineProperty(
+                  this, secret, Descriptor({
                     configurable: true,
                     value: bind.call(invoke, this, key)
-                  }
+                  })
                 ), secret)
         ;
       },
-      keys: function keys() {
-        return Object_keys(this);
-      },
+      keys: __ES5__?
+        function keys() {
+          return Object_keys(this);
+        } :
+        function keys() {
+          return Object_keys(this).filter(filterPrototypeKeys);
+        },
       set: set,
       values: function values() {
-        var values = [], key;
-        for (key in this)
-          this.has(key) && values.push(
-            ObjectPrototypeGet.call(this, key)
-          )
+        for (var keys = this.keys(), values = [], i = 0; i < keys.length; i++)
+          values[i] = ObjectPrototypeGet.call(this, keys[i])
         ;
         return values;
       }
@@ -405,25 +420,16 @@
   ;
 
   defineProperties(Object, {
-    define: {
-      value: define
-    }
-  });
-
-  defineProperties(Object, {
-    defineRaw: {
-      value: generateDefine(Object)
-    },
     defineProperty: {
-      value: define
+      value: Object_defineProperty === Object.defineProperty ?
+        defineProperty : Object_defineProperty
     },
     defineProperties: {
-      value: define
+      value: Object_defineProperties === Object.defineProperties ?
+        defineProperties : Object_defineProperties
     },
     create: {
-      value: function create(proto, descriptors) {
-        return Object_create(proto, Descriptors(descriptors));
-      }
+      value: create
     }
   });
 

@@ -34,6 +34,7 @@ wru.test([{
   test: function () {
     wru.assert("has", {"456":123}.has(456)); // as key, implicit cast
     wru.assert("!has", !{"456":123}.has(123));
+    wru.assert("!has", !{}.has("keys"));
   }
 },{
   name: "invoke",

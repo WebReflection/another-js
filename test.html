@@ -6,8 +6,16 @@
         <script src="Object.js"></script>
         <script src="Array.js"></script>
         <script>
+        var XHR = typeof XMLHttpRequest === typeof XHR ?
+          function () {
+            return new ActiveXObject("Microsoft.XMLHTTP");
+          } :
+          function () {
+            return new XMLHttpRequest;
+          }
+        ;
         function load(wru, file) {
-          var xhr = new XMLHttpRequest;
+          var xhr = XHR();
           xhr.open('get', file, false);
           xhr.send(null);
           eval(xhr.responseText.
@@ -19,9 +27,11 @@
           wru.test = function () {
             all = all.concat.apply(all, arguments);
           };
-          load(wru, 'test/Object.js');
           wru.test = test;
-          wru.test(all);
+          this.onload = function () {
+            load(wru, 'test/Object.js');
+            wru.test(all);
+          };
         }</script>
         <!-- add other scripts here if necessary-->
         <meta http-equiv="content-type" content="text/html; charset=utf-8" />

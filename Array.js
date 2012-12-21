@@ -1,4 +1,7 @@
-([].contains == {}.contains && function(Array){
+([].has == {}.has && function(Array){
+  function d(value) {
+    return {value: value};
+  }
   function mValues(value, i, arr) {
     return value;
   }
@@ -90,34 +93,30 @@
       }
     ,
     descriptors = {
-      contains: function contains(value) {
+      contains: d(function contains(value) {
         return -1 < Array_indexOf.call(this, value);
-      },
-      has: function has(i) {
+      }),
+      has: d(function has(i) {
         return i in this;
-      },
-      keys: function keys() {
+      }),
+      keys: d(function keys() {
         return Array_map.call(this, mKeys);
-      },
-      values: function values() {
+      }),
+      values: d(function values() {
         return Array_map.call(this, mValues);
-      }
+      })
     },
     k
   ;
-  // lastIndexOf, reduce, reduceRight missing
-  Array_every_original || (descriptors.every = Array_every);
-  Array_filter_original || (descriptors.filter = Array_filter);
-  Array_forEach_original || (descriptors.forEach = Array_forEach);
-  Array_indexOf_original || (descriptors.indexOf = Array_indexOf);
-  Array_map_original || (descriptors.map = Array_map);
-  Array_some_original || (descriptors.some = Array_some);
 
-  // TODO: test in older browsers
-  for(k in descriptors) {
-    var t = descriptors[k];
-    descriptors[k] = Object.create(null);
-    descriptors[k].value = t;
-  }
-  Object.defineRaw(ArrayPrototype, descriptors);
+  // lastIndexOf, reduce, reduceRight missing
+  Array_every_original || (descriptors.every = d(Array_every));
+  Array_filter_original || (descriptors.filter = d(Array_filter));
+  Array_forEach_original || (descriptors.forEach = d(Array_forEach));
+  Array_indexOf_original || (descriptors.indexOf = d(Array_indexOf));
+  Array_map_original || (descriptors.map = d(Array_map));
+  Array_some_original || (descriptors.some = d(Array_some));
+
+  Object.defineProperties(ArrayPrototype, descriptors);
+
 }(Array));
