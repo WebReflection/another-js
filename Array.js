@@ -80,6 +80,19 @@
         return out.slice(2);
       }
     ,
+    Array_reduce_original = ArrayPrototype.reduce,
+    Array_reduce = Array_reduce_original ||
+      function (callback, initialValue) {
+        for (var
+          i = arguments.length < 2 ? 0 : 1,
+          previousValue = i ? this[0] : initialValue;
+          i < this.length; i++
+        )
+          previousValue = callback.call(null, previousValue, this[i], i, this)
+        ;
+        return previousValue;
+      }
+    ,
     Array_some_original = ArrayPrototype.some,
     Array_some_helper = Array_some_original ||
       function someHelper(value, i, arr) {
@@ -109,12 +122,13 @@
     k
   ;
 
-  // lastIndexOf, reduce, reduceRight missing
+  // lastIndexOf, reduceRight missing
   Array_every_original || (descriptors.every = d(Array_every));
   Array_filter_original || (descriptors.filter = d(Array_filter));
   Array_forEach_original || (descriptors.forEach = d(Array_forEach));
   Array_indexOf_original || (descriptors.indexOf = d(Array_indexOf));
   Array_map_original || (descriptors.map = d(Array_map));
+  Array_reduce_original || (descriptors.reduce = d(Array_reduce));
   Array_some_original || (descriptors.some = d(Array_some));
 
   Object.defineProperties(ArrayPrototype, descriptors);
